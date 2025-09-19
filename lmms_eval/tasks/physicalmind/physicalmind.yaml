@@ -1,0 +1,24 @@
+task: "physicalmind"
+dataset_path: "csv"
+dataset_kwargs:
+  data_files:
+    test: "/mnt/world_foundational_model/gkz/data/physicalmind-bench/metadata.csv" # 将文件路径放在这里
+output_type: generate_until
+training_split: null
+validation_split: null
+test_split: test
+doc_to_text: !function utils.doc_to_text
+doc_to_target: !function utils.doc_to_target
+doc_to_visual: !function utils.physicalmind_doc_to_visual
+generation_kwargs: # Auxiliary arguments for the `generate` function from HF transformers library. This would be used in different models files.
+  max_new_tokens: 1024
+  temperature: 0
+  top_p: 1.0
+  num_beams: 1
+  do_sample: false
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+    ignore_case: true
+    ignore_punctuation: true

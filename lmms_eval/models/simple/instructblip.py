@@ -204,6 +204,7 @@ class InstructBLIP(lmms):
                 gen_kwargs["top_p"] = None
             if "num_beams" not in gen_kwargs:
                 gen_kwargs["num_beams"] = 1
+            # input_token_len = inputs.input_ids.shape[1]
             try:
                 cont = self.model.generate(
                     **inputs,
@@ -213,6 +214,7 @@ class InstructBLIP(lmms):
                     num_beams=gen_kwargs["num_beams"],
                     max_new_tokens=gen_kwargs["max_new_tokens"],
                 )
+                # cont = cont[:, input_token_len:]
             except Exception as e:
                 eval_logger.error(f"Error {e} in generating")
                 cont = ""

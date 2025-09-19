@@ -269,6 +269,10 @@ class EvaluationTracker:
                     if sample["filtered_resps"] == sample["resps"][0] or sample["filtered_resps"] == sample["resps"]:
                         sample.pop("resps")
                     sample["target"] = str(sample["target"])
+                    doc = sample["doc"]
+                    sample["experiment_name"] = doc.get("experiment_name", None)
+                    sample["video_path"] = doc.get("video_path", None)
+                    sample["question_type"] = doc.get("question_type", None)
                     sample.pop("arguments")
                     sample.pop("doc")
 

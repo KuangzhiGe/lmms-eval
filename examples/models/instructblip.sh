@@ -1,10 +1,16 @@
-cd /path/to/lmms-eval
+export WANDB_API_KEY="cfbb7b5b972619513ee861d88956b8e497dc71da"
+export http_proxy=http://192.168.32.28:18000 
+export https_proxy=http://192.168.32.28:18000
+export HF_TOKEN="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"
+export HF_HOME="/mnt/world_foundational_model/gkz/ckpts"
+
+cd /mnt/world_foundational_model/gkz/lmms-eval
 python3 -m pip install -e .;
 
 python3 -m pip install transformers --upgrade;
 
-CKPT_PATH=$1
-TASK=$2
+CKPT_PATH="/mnt/world_foundational_model/gkz/lmms-eval/baselines/Salesforce/instructblip-vicuna-7b"
+TASK="gqa"
 echo $TASK
 TASK_SUFFIX="${TASK//,/_}"
 echo $TASK_SUFFIX
