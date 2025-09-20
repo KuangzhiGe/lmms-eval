@@ -1,0 +1,30 @@
+dataset_path: RunsenXu/MMSI-Bench
+
+task: "mmsi_bench"
+test_split: test
+output_type: generate_until
+doc_to_visual: !function utils.mmsi_doc_to_visual
+doc_to_text: !function utils.mmsi_doc_to_text
+doc_to_target: !function utils.mmsi_doc_to_target
+process_results: !function utils.mmsi_process_results
+
+lmms_eval_specific_kwargs:
+  default:
+    pre_prompt: "Analyse the social interaction depicted in the images before answering."
+    post_prompt: "\nAnswer succinctly in one sentence."
+
+generation_kwargs:
+  max_new_tokens: 64
+  temperature: 0.0
+  do_sample: false
+
+metric_list:
+  - metric: accuracy__MMSI-Overall
+    aggregation: !function utils.mmsi_aggregate_overall
+    higher_is_better: true
+  - metric: accuracy__MMSI-MacroPerType
+    aggregation: !function utils.mmsi_aggregate_macro_per_type
+    higher_is_better: true
+
+metadata:
+  version: 0.1

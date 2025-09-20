@@ -1,0 +1,51 @@
+dataset_path: lmms-lab/TallyQA
+
+task: "tallyqa"
+test_split: test
+output_type: generate_until
+doc_to_visual: !function utils.tallyqa_doc_to_visual
+doc_to_text: !function utils.tallyqa_doc_to_text
+doc_to_target: !function utils.tallyqa_doc_to_target
+process_results: !function utils.tallyqa_process_results
+
+lmms_eval_specific_kwargs:
+  default:
+    pre_prompt: "You are a meticulous visual counter."
+    post_prompt: "\nRespond with a single integer between 0 and 15."
+
+generation_kwargs:
+  max_new_tokens: 32
+  temperature: 0.0
+  do_sample: false
+
+metric_list:
+  - metric: TallyQA-simple-Accuracy
+    aggregation: !function utils.tallyqa_accuracy_simple
+    higher_is_better: true
+  - metric: TallyQA-simple-AUCROC
+    aggregation: !function utils.tallyqa_aucroc_simple
+    higher_is_better: true
+  - metric: TallyQA-simple-AUCPR
+    aggregation: !function utils.tallyqa_aucpr_simple
+    higher_is_better: true
+  - metric: TallyQA-complex-Accuracy
+    aggregation: !function utils.tallyqa_accuracy_complex
+    higher_is_better: true
+  - metric: TallyQA-complex-AUCROC
+    aggregation: !function utils.tallyqa_aucroc_complex
+    higher_is_better: true
+  - metric: TallyQA-complex-AUCPR
+    aggregation: !function utils.tallyqa_aucpr_complex
+    higher_is_better: true
+  - metric: TallyQA-final-Accuracy
+    aggregation: !function utils.tallyqa_accuracy_final
+    higher_is_better: true
+  - metric: TallyQA-final-AUCROC
+    aggregation: !function utils.tallyqa_aucroc_final
+    higher_is_better: true
+  - metric: TallyQA-final-AUCPR
+    aggregation: !function utils.tallyqa_aucpr_final
+    higher_is_better: true
+
+metadata:
+  version: 0.1

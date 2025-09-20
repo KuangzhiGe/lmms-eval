@@ -1,0 +1,30 @@
+dataset_path: SAT-Bench/SAT
+
+task: "sat_bench"
+test_split: val
+output_type: generate_until
+doc_to_visual: !function utils.sat_doc_to_visual
+doc_to_text: !function utils.sat_doc_to_text
+doc_to_target: !function utils.sat_doc_to_target
+process_results: !function utils.sat_process_results
+
+lmms_eval_specific_kwargs:
+  default:
+    pre_prompt: "Study the temporal ordering of the frames before answering."
+    post_prompt: "\nProvide the best answer option as natural language."
+
+generation_kwargs:
+  max_new_tokens: 64
+  temperature: 0.0
+  do_sample: false
+
+metric_list:
+  - metric: accuracy__SAT-Overall
+    aggregation: !function utils.sat_aggregate_overall
+    higher_is_better: true
+  - metric: accuracy__SAT-MacroPerType
+    aggregation: !function utils.sat_aggregate_macro_per_type
+    higher_is_better: true
+
+metadata:
+  version: 0.1

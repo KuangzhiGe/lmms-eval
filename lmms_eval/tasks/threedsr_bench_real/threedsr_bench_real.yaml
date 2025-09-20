@@ -1,0 +1,76 @@
+dataset_path: ccvl/3DSRBench
+dataset_name: real
+
+task: "threedsr_bench_real"
+test_split: test
+output_type: generate_until
+doc_to_visual: !function utils.threedsr_doc_to_visual
+doc_to_text: !function utils.threedsr_doc_to_text
+doc_to_target: !function utils.threedsr_doc_to_target
+process_results: !function utils.threedsr_process_results
+
+lmms_eval_specific_kwargs:
+  default:
+    pre_prompt: "Consider the 3D scene carefully before answering."
+    post_prompt: "\nRespond with the option letter only."
+
+generation_kwargs:
+  max_new_tokens: 32
+  temperature: 0.0
+  do_sample: false
+
+metric_list:
+  - metric: accuracy__OVERALL
+    aggregation: !function utils.threedsr_accuracy_overall
+    higher_is_better: true
+  - metric: accuracy__location
+    aggregation: !function utils.threedsr_accuracy_location
+    higher_is_better: true
+  - metric: accuracy__height
+    aggregation: !function utils.threedsr_accuracy_height
+    higher_is_better: true
+  - metric: accuracy__orientation
+    aggregation: !function utils.threedsr_accuracy_orientation
+    higher_is_better: true
+  - metric: accuracy__multi_object
+    aggregation: !function utils.threedsr_accuracy_multi_object
+    higher_is_better: true
+  - metric: accuracy__location_above
+    aggregation: !function utils.threedsr_accuracy_location_above
+    higher_is_better: true
+  - metric: accuracy__location_closer_to_camera
+    aggregation: !function utils.threedsr_accuracy_location_closer_to_camera
+    higher_is_better: true
+  - metric: accuracy__location_next_to
+    aggregation: !function utils.threedsr_accuracy_location_next_to
+    higher_is_better: true
+  - metric: accuracy__height_higher
+    aggregation: !function utils.threedsr_accuracy_height_higher
+    higher_is_better: true
+  - metric: accuracy__orientation_in_front_of
+    aggregation: !function utils.threedsr_accuracy_orientation_in_front_of
+    higher_is_better: true
+  - metric: accuracy__orientation_on_the_left
+    aggregation: !function utils.threedsr_accuracy_orientation_on_the_left
+    higher_is_better: true
+  - metric: accuracy__orientation_viewpoint
+    aggregation: !function utils.threedsr_accuracy_orientation_viewpoint
+    higher_is_better: true
+  - metric: accuracy__multi_object_closer_to
+    aggregation: !function utils.threedsr_accuracy_multi_object_closer_to
+    higher_is_better: true
+  - metric: accuracy__multi_object_facing
+    aggregation: !function utils.threedsr_accuracy_multi_object_facing
+    higher_is_better: true
+  - metric: accuracy__multi_object_viewpoint_towards_object
+    aggregation: !function utils.threedsr_accuracy_multi_object_viewpoint_towards_object
+    higher_is_better: true
+  - metric: accuracy__multi_object_parallel
+    aggregation: !function utils.threedsr_accuracy_multi_object_parallel
+    higher_is_better: true
+  - metric: accuracy__multi_object_same_direction
+    aggregation: !function utils.threedsr_accuracy_multi_object_same_direction
+    higher_is_better: true
+
+metadata:
+  version: 0.1

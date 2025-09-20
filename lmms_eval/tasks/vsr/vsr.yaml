@@ -1,0 +1,36 @@
+dataset_path: cambridgeltl/vsr_zeroshot
+
+task: "vsr"
+test_split: test
+output_type: generate_until
+doc_to_visual: !function utils.vsr_doc_to_visual
+doc_to_text: !function utils.vsr_doc_to_text
+doc_to_target: !function utils.vsr_doc_to_target
+process_results: !function utils.vsr_process_results
+
+lmms_eval_specific_kwargs:
+  default:
+    pre_prompt: "You will be shown an image. Decide whether the statement is correct."
+    post_prompt: "\nAnswer with either `True` or `False`."
+
+generation_kwargs:
+  max_new_tokens: 16
+  temperature: 0.0
+  do_sample: false
+
+metric_list:
+  - metric: VSR-ExactMatch
+    aggregation: !function utils.vsr_aggregate_accuracy
+    higher_is_better: true
+  - metric: VSR-AUCROC
+    aggregation: !function utils.vsr_aggregate_auc_roc
+    higher_is_better: true
+  - metric: VSR-AUCPR
+    aggregation: !function utils.vsr_aggregate_auc_pr
+    higher_is_better: true
+  - metric: VSR-AlwaysTrue
+    aggregation: !function utils.vsr_aggregate_always_true
+    higher_is_better: true
+
+metadata:
+  version: 0.1
