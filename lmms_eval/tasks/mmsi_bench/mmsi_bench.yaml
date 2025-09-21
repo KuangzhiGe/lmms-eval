@@ -1,4 +1,4 @@
-dataset_path: RunsenXu/MMSI-Bench
+dataset_path: /mnt/world_foundational_model/gkz/data/vlm-evaluation/datasets/MMSI-Bench
 
 task: "mmsi_bench"
 test_split: test

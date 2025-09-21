@@ -1,4 +1,4 @@
-dataset_path: SAT-Bench/SAT
+dataset_path: /mnt/world_foundational_model/gkz/data/vlm-evaluation/datasets/SAT
 
 task: "sat_bench"
 test_split: val

@@ -1,4 +1,4 @@
-dataset_path: ccvl/3DSRBench
+dataset_path: /mnt/world_foundational_model/gkz/data/vlm-evaluation/datasets/3DSRBench
 dataset_name: real
 
 task: "threedsr_bench_real"

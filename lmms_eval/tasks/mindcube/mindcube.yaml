@@ -1,4 +1,4 @@
-dataset_path: MLL-Lab/MindCube
+dataset_path: /mnt/world_foundational_model/gkz/data/vlm-evaluation/datasets/MindCube
 
 task: "mindcube"
 test_split: test
