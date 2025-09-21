@@ -1,13 +1,80 @@
 import io
+import json
 import logging
 import re
+from collections import defaultdict
+from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
+from datasets import Dataset, DatasetDict
 from PIL import Image
 
 
 eval_logger = logging.getLogger("lmms-eval")
+
+
+def load_sat_bench_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> DatasetDict:
+    """Load the locally mirrored SAT-Bench metadata into a DatasetDict."""
+
+    base_path = Path(dataset_kwargs.pop("data_root", dataset_path))
+    metadata_file = dataset_kwargs.pop("metadata_file", "metadata-full.json")
+    metadata_path = Path(metadata_file)
+    if not metadata_path.is_absolute():
+        metadata_path = base_path / metadata_file
+
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"SAT-Bench metadata file not found at {metadata_path}")
+
+    with metadata_path.open("r", encoding="utf-8") as fp:
+        raw_payload = json.load(fp)
+
+    if isinstance(raw_payload, dict):
+        records = list(raw_payload.values())
+    elif isinstance(raw_payload, list):
+        records = raw_payload
+    else:
+        raise TypeError("SAT-Bench metadata must be a JSON object or array.")
+
+    split_key = dataset_kwargs.pop("split_key", "split")
+    image_key = dataset_kwargs.pop("image_key", "img_path")
+
+    split_to_examples: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for example in sorted(records, key=lambda item: item.get("example_id", 0)):
+        example_split = example.get(split_key, "val") or "val"
+
+        image_entries = example.get(image_key) or []
+        resolved_images: List[str] = []
+        for image_path in image_entries:
+            image_path = str(image_path)
+            candidate = Path(image_path)
+            if not candidate.is_absolute():
+                candidate = base_path / image_path
+            resolved_images.append(str(candidate))
+
+        rebuilt = {
+            "example_id": int(example.get("example_id", 0)),
+            "id": str(example.get("example_id", "")),
+            "question": example.get("question", ""),
+            "answer_choices": list(example.get("choices", [])),
+            "choices": list(example.get("choices", [])),
+            "correct_answer": str(example.get("correct_answer", "")),
+            "answer": str(example.get("correct_answer", "")),
+            "question_type": example.get("question_type", "unknown"),
+            "images": resolved_images,
+            "img_path": resolved_images,
+            "split": example_split,
+            "dataset": example.get("dataset", "SAT"),
+        }
+
+        split_to_examples[example_split].append(rebuilt)
+
+    dataset_dict = {
+        split_name: Dataset.from_list(examples)
+        for split_name, examples in split_to_examples.items()
+    }
+
+    return DatasetDict(dataset_dict)
 
 
 def _load_image_sequence(images: List[Any]) -> List[Image.Image]:

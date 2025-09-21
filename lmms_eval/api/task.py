@@ -1044,7 +1044,18 @@ class ConfigurableTask(Task):
             if "create_link" in dataset_kwargs:
                 dataset_kwargs.pop("create_link")
 
-        if dataset_kwargs is not None and "load_from_disk" in dataset_kwargs and dataset_kwargs["load_from_disk"]:
+        custom_loader = None
+        if dataset_kwargs is not None:
+            custom_loader = dataset_kwargs.pop("custom_loader", None)
+
+        if custom_loader:
+            if custom_loader == "sat_bench":
+                from lmms_eval.tasks.sat_bench.utils import load_sat_bench_dataset
+
+                self.dataset = load_sat_bench_dataset(self.DATASET_PATH, dataset_kwargs or {})
+            else:
+                raise ValueError(f"Unknown custom_loader '{custom_loader}' specified for dataset {self.DATASET_PATH}")
+        elif dataset_kwargs is not None and "load_from_disk" in dataset_kwargs and dataset_kwargs["load_from_disk"]:
             # using local task in offline environment, need to process the online dataset into local format via
             # `ds = load_datasets("lmms-lab/MMMU")`
             self.dataset = datasets.load_from_disk(dataset_path=self.DATASET_PATH)
