@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List, Tuple
 
 import numpy as np
@@ -9,6 +10,7 @@ from decord import VideoReader, cpu
 from PIL import Image
 from torchvision.transforms.functional import InterpolationMode
 from tqdm import tqdm
+from huggingface_hub import snapshot_download
 from transformers import AutoModel, AutoTokenizer
 
 from lmms_eval.api.instance import Instance
@@ -204,8 +206,58 @@ class InternVL2(lmms):
             self._device = torch.device(f"cuda:{accelerator.local_process_index}")
             self.device_map = f"cuda:{accelerator.local_process_index}"
 
-        self._model = AutoModel.from_pretrained(self.path, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, trust_remote_code=True, device_map=self.device_map).eval()
-        self._tokenizer = AutoTokenizer.from_pretrained(self.path, trust_remote_code=True, device_map=self.device_map)
+        def _load_model():
+            return AutoModel.from_pretrained(
+                self.path,
+                torch_dtype=torch.bfloat16,
+                low_cpu_mem_usage=True,
+                trust_remote_code=True,
+                device_map=self.device_map,
+            ).eval()
+
+        def _load_tokenizer():
+            return AutoTokenizer.from_pretrained(
+                self.path,
+                trust_remote_code=True,
+                device_map=self.device_map,
+            )
+
+        def _ensure_snapshot():
+            if not isinstance(self.path, str) or os.path.isdir(self.path):
+                return False
+            eval_logger.warning("Forcing re-download of %s to retrieve missing code files", self.path)
+            snapshot_download(
+                repo_id=self.path,
+                repo_type="model",
+                allow_patterns=[
+                    "*.py",
+                    "*.json",
+                    "*.txt",
+                    "*.model",
+                    "*.safetensors",
+                    "*.bin",
+                    "*tokenizer*",
+                    "*config*",
+                ],
+                local_dir=None,
+                local_dir_use_symlinks=False,
+                force_download=True,
+            )
+            return True
+
+        try:
+            self._model = _load_model()
+        except FileNotFoundError:
+            if not _ensure_snapshot():
+                raise
+            self._model = _load_model()
+
+        try:
+            self._tokenizer = _load_tokenizer()
+        except FileNotFoundError:
+            if not _ensure_snapshot():
+                raise
+            self._tokenizer = _load_tokenizer()
 
         if accelerator.num_processes > 1:
             assert accelerator.distributed_type in [DistributedType.FSDP, DistributedType.MULTI_GPU, DistributedType.DEEPSPEED], "Unsupported distributed type provided. Only DDP and FSDP are supported."
