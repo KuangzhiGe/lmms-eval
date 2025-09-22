@@ -1,4 +1,7 @@
 dataset_path: /mnt/world_foundational_model/gkz/data/vlm-evaluation/datasets/vsr
+dataset_kwargs:
+  custom_loader: vsr
+  metadata_file: metadata-full.json
 
 task: "vsr"
 test_split: test

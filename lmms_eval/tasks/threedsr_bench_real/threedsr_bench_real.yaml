@@ -1,5 +1,8 @@
 dataset_path: /mnt/world_foundational_model/gkz/data/vlm-evaluation/datasets/3DSRBench
 dataset_name: real
+dataset_kwargs:
+  custom_loader: threedsr_bench_real
+  metadata_file: metadata-full.json
 
 task: "threedsr_bench_real"
 test_split: test

@@ -1,4 +1,7 @@
 dataset_path: /mnt/world_foundational_model/gkz/data/vlm-evaluation/datasets/MindCube
+dataset_kwargs:
+  custom_loader: mindcube
+  metadata_file: metadata-full.json
 
 task: "mindcube"
 test_split: test

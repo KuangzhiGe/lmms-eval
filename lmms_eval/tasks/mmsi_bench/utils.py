@@ -1,16 +1,83 @@
 import io
+import json
 import logging
 import re
 from collections import defaultdict
+from pathlib import Path
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
+from datasets import Dataset, DatasetDict
 from PIL import Image
 
 from lmms_eval.filters.extraction import ExtendedRegexFilter
 from lmms_eval.filters.transformation import MapFilter
 
 eval_logger = logging.getLogger("lmms-eval")
+
+
+def load_mmsi_bench_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> DatasetDict:
+    """Load the locally cached MMSI-Bench metadata into a DatasetDict."""
+
+    base_path = Path(dataset_kwargs.pop("data_root", dataset_path))
+    metadata_file = dataset_kwargs.pop("metadata_file", "metadata-full.json")
+    metadata_path = Path(metadata_file)
+    if not metadata_path.is_absolute():
+        metadata_path = base_path / metadata_file
+
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"MMSI-Bench metadata file not found at {metadata_path}")
+
+    with metadata_path.open("r", encoding="utf-8") as fp:
+        raw_payload = json.load(fp)
+
+    if isinstance(raw_payload, dict):
+        records = list(raw_payload.values())
+    elif isinstance(raw_payload, list):
+        records = raw_payload
+    else:
+        raise TypeError("MMSI-Bench metadata must be a JSON object or array.")
+
+    split_key = dataset_kwargs.pop("split_key", "split")
+    image_key = dataset_kwargs.pop("image_key", "img_paths")
+
+    split_to_examples: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for example in sorted(records, key=lambda item: str(item.get("example_id", ""))):
+        example_id = str(example.get("example_id") or example.get("id") or "")
+        split = (example.get(split_key) or "test").strip() or "test"
+
+        image_entries = example.get(image_key) or []
+        resolved_images: List[str] = []
+        for image_path in image_entries:
+            if image_path is None:
+                continue
+            candidate = Path(str(image_path))
+            if not candidate.is_absolute():
+                candidate = base_path / candidate
+            resolved_images.append(str(candidate))
+
+        rebuilt = {
+            "example_id": example_id,
+            "id": example_id,
+            "question": str(example.get("question", "")),
+            "question_type": example.get("question_type", "unknown"),
+            "thought": example.get("thought"),
+            "images": resolved_images,
+            "image_sequence": resolved_images,
+            "img_paths": resolved_images,
+            "answer": str(example.get("answer", "")),
+            "split": split,
+        }
+
+        split_to_examples[split].append(rebuilt)
+
+    dataset_dict = {
+        split_name: Dataset.from_list(examples)
+        for split_name, examples in split_to_examples.items()
+    }
+
+    return DatasetDict(dataset_dict)
 
 
 def msr_doc_to_text(doc, lmms_eval_specific_kwargs=None):

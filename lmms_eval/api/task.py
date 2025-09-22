@@ -1053,6 +1053,22 @@ class ConfigurableTask(Task):
                 from lmms_eval.tasks.sat_bench.utils import load_sat_bench_dataset
 
                 self.dataset = load_sat_bench_dataset(self.DATASET_PATH, dataset_kwargs or {})
+            elif custom_loader == "threedsr_bench_real":
+                from lmms_eval.tasks.threedsr_bench_real.utils import load_threedsr_bench_dataset
+
+                self.dataset = load_threedsr_bench_dataset(self.DATASET_PATH, dataset_kwargs or {})
+            elif custom_loader == "mmsi_bench":
+                from lmms_eval.tasks.mmsi_bench.utils import load_mmsi_bench_dataset
+
+                self.dataset = load_mmsi_bench_dataset(self.DATASET_PATH, dataset_kwargs or {})
+            elif custom_loader == "mindcube":
+                from lmms_eval.tasks.mindcube.utils import load_mindcube_dataset
+
+                self.dataset = load_mindcube_dataset(self.DATASET_PATH, dataset_kwargs or {})
+            elif custom_loader == "vsr":
+                from lmms_eval.tasks.vsr.utils import load_vsr_dataset
+
+                self.dataset = load_vsr_dataset(self.DATASET_PATH, dataset_kwargs or {})
             else:
                 raise ValueError(f"Unknown custom_loader '{custom_loader}' specified for dataset {self.DATASET_PATH}")
         elif dataset_kwargs is not None and "load_from_disk" in dataset_kwargs and dataset_kwargs["load_from_disk"]:

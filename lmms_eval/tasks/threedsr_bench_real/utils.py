@@ -1,9 +1,12 @@
+import json
 import logging
 import re
 from io import BytesIO
+from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
+from datasets import Dataset, DatasetDict
 from PIL import Image
 
 
@@ -36,6 +39,82 @@ THREEDSR_METRIC_KEYS.extend([f"accuracy__{type_name}" for type_name in THREEDSR_
 THREEDSR_METRIC_KEYS.extend([f"accuracy__{subtype}" for subtype in THREEDSR_SUBTYPES])
 
 _DEFAULT_POST_PROMPT = "\nAnswer with the option letter (A, B, C, or D)."
+
+
+def load_threedsr_bench_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> DatasetDict:
+    """Load the locally mirrored 3DSR-Bench metadata into a DatasetDict."""
+
+    base_path = Path(dataset_kwargs.pop("data_root", dataset_path))
+    metadata_file = dataset_kwargs.pop("metadata_file", "metadata-full.json")
+    split_name = dataset_kwargs.pop("split_name", "test")
+
+    metadata_path = Path(metadata_file)
+    if not metadata_path.is_absolute():
+        metadata_path = base_path / metadata_file
+
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"3DSR-Bench metadata file not found at {metadata_path}")
+
+    with metadata_path.open("r", encoding="utf-8") as fp:
+        raw_payload = json.load(fp)
+
+    if isinstance(raw_payload, dict):
+        records = list(raw_payload.values())
+    elif isinstance(raw_payload, list):
+        records = raw_payload
+    else:
+        raise TypeError("3DSR-Bench metadata must be a JSON object or array.")
+
+    examples: List[Dict[str, Any]] = []
+    for example in sorted(records, key=lambda item: str(item.get("example_id", ""))):
+        example_id = str(example.get("example_id") or example.get("id") or "")
+        question = str(example.get("question", ""))
+        choices = example.get("choices") or []
+        labelled_choices = {}
+        filtered_choices: List[str] = []
+        for idx in range(4):
+            choice_value = choices[idx] if idx < len(choices) else None
+            if choice_value is not None:
+                choice_str = str(choice_value)
+                filtered_choices.append(choice_str)
+            else:
+                choice_str = None
+            labelled_choices[chr(ord("A") + idx)] = choice_str
+
+        answer_letter = str(example.get("answer", "")).strip().upper()
+
+        image_ref = example.get("img_path") or example.get("image_path") or example.get("image")
+        if image_ref:
+            image_path = Path(str(image_ref))
+            if not image_path.is_absolute():
+                image_path = base_path / image_path
+            image_path = image_path.resolve()
+        else:
+            image_path = None
+
+        rebuilt = {
+            "index": example_id,
+            "example_id": example_id,
+            "question": question,
+            "A": labelled_choices.get("A"),
+            "B": labelled_choices.get("B"),
+            "C": labelled_choices.get("C"),
+            "D": labelled_choices.get("D"),
+            "answer": answer_letter,
+            "answer_choices": filtered_choices,
+            "choices": filtered_choices,
+            "category": example.get("category") or example.get("type"),
+            "image": str(image_path) if image_path else None,
+            "image_path": str(image_path) if image_path else None,
+            "img": str(image_path) if image_path else None,
+            "image_source": example.get("image_source"),
+            "image_url": example.get("image_url"),
+        }
+
+        examples.append(rebuilt)
+
+    dataset = Dataset.from_list(examples)
+    return DatasetDict({split_name: dataset})
 
 
 def _load_image(image_like: Any) -> Image.Image:

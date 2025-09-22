@@ -1,14 +1,98 @@
 import io
+import json
 import logging
 import re
+from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
+from datasets import Dataset, DatasetDict
 from PIL import Image
 
 
 eval_logger = logging.getLogger("lmms-eval")
 
+
+def load_mindcube_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> DatasetDict:
+    """Load the locally mirrored MindCube metadata into a DatasetDict."""
+
+    base_path = Path(dataset_kwargs.pop("data_root", dataset_path))
+    metadata_file = dataset_kwargs.pop("metadata_file", "metadata-full.json")
+    metadata_path = Path(metadata_file)
+    if not metadata_path.is_absolute():
+        metadata_path = base_path / metadata_file
+
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"MindCube metadata file not found at {metadata_path}")
+
+    with metadata_path.open("r", encoding="utf-8") as fp:
+        raw_payload = json.load(fp)
+
+    if isinstance(raw_payload, dict):
+        records = list(raw_payload.values())
+    elif isinstance(raw_payload, list):
+        records = raw_payload
+    else:
+        raise TypeError("MindCube metadata must be a JSON object or array.")
+
+    split_key = dataset_kwargs.pop("split_key", "split")
+    image_key = dataset_kwargs.pop("image_key", "img_path")
+
+    def _flatten_meta(meta_obj):
+        if meta_obj is None:
+            return []
+        if isinstance(meta_obj, list):
+            flattened = []
+            for item in meta_obj:
+                flattened.extend(_flatten_meta(item))
+            return flattened
+        return [str(meta_obj)]
+
+    split_to_examples: Dict[str, List[Dict[str, Any]]] = {}
+    for example in sorted(records, key=lambda item: str(item.get("example_id", ""))):
+        example_id = str(example.get("example_id") or example.get("id") or "")
+        split = (example.get(split_key) or "test").strip() or "test"
+
+        image_entries = example.get(image_key) or []
+        resolved_images: List[str] = []
+        for image_path in image_entries:
+            candidate = Path(str(image_path))
+            if not candidate.is_absolute():
+                candidate = base_path / candidate
+            resolved_images.append(str(candidate))
+
+        category = example.get("category")
+        if isinstance(category, list):
+            category_values = [str(item) for item in category if item is not None]
+        else:
+            category_values = [str(category)] if category is not None else []
+
+        meta_info = example.get("meta_info")
+        flattened_meta = _flatten_meta(meta_info)
+        meta_str = "; ".join(item for item in flattened_meta if item)
+
+        rebuilt = {
+            "example_id": example_id,
+            "id": example_id,
+            "question": str(example.get("question", "")),
+            "answer": str(example.get("answer") or example.get("gt_answer") or ""),
+            "images": resolved_images,
+            "image_paths": resolved_images,
+            "frames": resolved_images,
+            "type": example.get("type"),
+            "category": category_values,
+            "meta_info": meta_str,
+            "split": split,
+        }
+
+        split_to_examples.setdefault(split, []).append(rebuilt)
+
+    dataset_dict = {
+        split_name: Dataset.from_list(examples)
+        for split_name, examples in split_to_examples.items()
+    }
+
+    return DatasetDict(dataset_dict)
 
 def _load_image_sequence(images: List[Any]) -> List[Image.Image]:
     frames: List[Image.Image] = []

@@ -1,10 +1,13 @@
+import json
 import logging
 import math
 import re
 from io import BytesIO
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+from datasets import Dataset, DatasetDict
 from PIL import Image
 from sklearn.metrics import average_precision_score, roc_auc_score
 
@@ -13,6 +16,74 @@ eval_logger = logging.getLogger("lmms-eval")
 
 _DEFAULT_PRE_PROMPT = "You will be shown an image. Decide whether the statement is true or false."
 _DEFAULT_POST_PROMPT = "\nAnswer with either `True` or `False`."
+
+
+def load_vsr_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> DatasetDict:
+    """Load the locally mirrored VSR metadata into a DatasetDict."""
+
+    base_path = Path(dataset_kwargs.pop("data_root", dataset_path))
+    metadata_file = dataset_kwargs.pop("metadata_file", "metadata-full.json")
+    split_name = dataset_kwargs.pop("split_name", "test")
+
+    metadata_path = Path(metadata_file)
+    if not metadata_path.is_absolute():
+        metadata_path = base_path / metadata_file
+
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"VSR metadata file not found at {metadata_path}")
+
+    with metadata_path.open("r", encoding="utf-8") as fp:
+        raw_payload = json.load(fp)
+
+    if isinstance(raw_payload, dict):
+        records = list(raw_payload.values())
+    elif isinstance(raw_payload, list):
+        records = raw_payload
+    else:
+        raise TypeError("VSR metadata must be a JSON object or array.")
+
+    examples: List[Dict[str, Any]] = []
+    for example in sorted(records, key=lambda item: str(item.get("example_id", ""))):
+        example_id = example.get("example_id")
+        example_id = str(example_id)
+
+        image_ref = example.get("img_path") or example.get("image_path") or example.get("image")
+        if image_ref:
+            image_path = Path(str(image_ref))
+            if not image_path.is_absolute():
+                image_path = base_path / image_path
+            image_path = image_path.resolve()
+        else:
+            image_path = None
+
+        label = example.get("true_false")
+        if isinstance(label, str):
+            lowered = label.lower()
+            if lowered in {"true", "t", "1", "yes"}:
+                label = True
+            elif lowered in {"false", "f", "0", "no"}:
+                label = False
+        else:
+            label = bool(label)
+
+        rebuilt = {
+            "example_id": example_id,
+            "id": example_id,
+            "caption": str(example.get("caption", "")),
+            "statement": str(example.get("caption", "")),
+            "subj": example.get("subj"),
+            "obj": example.get("obj"),
+            "relation": example.get("relation"),
+            "label": bool(label),
+            "image": str(image_path) if image_path else None,
+            "img": str(image_path) if image_path else None,
+            "image_path": str(image_path) if image_path else None,
+        }
+
+        examples.append(rebuilt)
+
+    dataset = Dataset.from_list(examples)
+    return DatasetDict({split_name: dataset})
 
 
 def _load_image(image_like: Any) -> Image.Image:
