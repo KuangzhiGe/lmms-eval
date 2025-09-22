@@ -31,6 +31,7 @@ AVAILABLE_SIMPLE_MODELS = {
     "internvideo2": "InternVideo2",
     "internvl": "InternVLChat",
     "internvl2": "InternVL2",
+    "internvl2_5": "InternVL2_5",
     "llama_vid": "LLaMAVid",
     "llama_vision": "LlamaVision",
     "llava": "Llava",
