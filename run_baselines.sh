@@ -1,7 +1,7 @@
 export WANDB_API_KEY="cfbb7b5b972619513ee861d88956b8e497dc71da"
 export http_proxy=http://192.168.32.28:18000
 export https_proxy=http://192.168.32.28:18000
-export HF_TOKEN="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" #${HF_TOKEN}
+export HF_TOKEN=${HF_TOKEN}
 export HF_HOME="/mnt/world_foundational_model/gkz/ckpts"
 
 
