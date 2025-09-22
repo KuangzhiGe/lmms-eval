@@ -126,6 +126,7 @@ def vsr_doc_to_visual(doc: Dict[str, Any]) -> List[Image.Image]:
     image = doc.get("image") or doc.get("img") or doc.get("image_path")
     if image is None:
         raise KeyError("VSR doc is missing the `image` field")
+    image = image.replace("/datasets/vsr", "")
     try:
         return [_load_image(image)]
     except Exception as exc:  # pragma: no cover - defensive
