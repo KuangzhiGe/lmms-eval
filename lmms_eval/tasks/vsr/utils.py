@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, Features, Sequence, Value
 from PIL import Image
 from sklearn.metrics import average_precision_score, roc_auc_score
 
@@ -21,9 +21,11 @@ _DEFAULT_POST_PROMPT = "\nAnswer with either `True` or `False`."
 def load_vsr_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> DatasetDict:
     """Load the locally mirrored VSR metadata into a DatasetDict."""
 
-    base_path = Path(dataset_kwargs.pop("data_root", dataset_path))
-    metadata_file = dataset_kwargs.pop("metadata_file", "metadata-full.json")
-    split_name = dataset_kwargs.pop("split_name", "test")
+    params = dict(dataset_kwargs)
+
+    base_path = Path(params.pop("data_root", dataset_path))
+    metadata_file = params.pop("metadata_file", "metadata-full.json")
+    split_name = params.pop("split_name", "test")
 
     metadata_path = Path(metadata_file)
     if not metadata_path.is_absolute():
@@ -54,7 +56,7 @@ def load_vsr_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> Datas
                 image_path = base_path / image_path
             image_path = image_path.resolve()
         else:
-            image_path = None
+            raise ValueError(f"VSR sample {example_id} missing image path")
 
         label = example.get("true_false")
         if isinstance(label, str):
@@ -66,23 +68,41 @@ def load_vsr_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> Datas
         else:
             label = bool(label)
 
+        path_str = str(image_path)
+
         rebuilt = {
             "example_id": example_id,
             "id": example_id,
             "caption": str(example.get("caption", "")),
             "statement": str(example.get("caption", "")),
-            "subj": example.get("subj"),
-            "obj": example.get("obj"),
-            "relation": example.get("relation"),
+            "subj": str(example.get("subj") or ""),
+            "obj": str(example.get("obj") or ""),
+            "relation": str(example.get("relation") or ""),
             "label": bool(label),
-            "image": str(image_path) if image_path else None,
-            "img": str(image_path) if image_path else None,
-            "image_path": str(image_path) if image_path else None,
+            "image": path_str,
+            "img": path_str,
+            "image_path": path_str,
         }
 
         examples.append(rebuilt)
 
-    dataset = Dataset.from_list(examples)
+    features = Features(
+        {
+            "example_id": Value("string"),
+            "id": Value("string"),
+            "caption": Value("string"),
+            "statement": Value("string"),
+            "subj": Value("string"),
+            "obj": Value("string"),
+            "relation": Value("string"),
+            "label": Value("bool"),
+            "image": Value("string"),
+            "img": Value("string"),
+            "image_path": Value("string"),
+        }
+    )
+
+    dataset = Dataset.from_list(examples, features=features)
     return DatasetDict({split_name: dataset})
 
 

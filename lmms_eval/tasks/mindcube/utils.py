@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, Features, Sequence, Value
 from PIL import Image
 
 
@@ -16,8 +16,10 @@ eval_logger = logging.getLogger("lmms-eval")
 def load_mindcube_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> DatasetDict:
     """Load the locally mirrored MindCube metadata into a DatasetDict."""
 
-    base_path = Path(dataset_kwargs.pop("data_root", dataset_path))
-    metadata_file = dataset_kwargs.pop("metadata_file", "metadata-full.json")
+    params = dict(dataset_kwargs)
+
+    base_path = Path(params.pop("data_root", dataset_path))
+    metadata_file = params.pop("metadata_file", "metadata-full.json")
     metadata_path = Path(metadata_file)
     if not metadata_path.is_absolute():
         metadata_path = base_path / metadata_file
@@ -35,8 +37,8 @@ def load_mindcube_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> 
     else:
         raise TypeError("MindCube metadata must be a JSON object or array.")
 
-    split_key = dataset_kwargs.pop("split_key", "split")
-    image_key = dataset_kwargs.pop("image_key", "img_path")
+    split_key = params.pop("split_key", "split")
+    image_key = params.pop("image_key", "img_path")
 
     def _flatten_meta(meta_obj):
         if meta_obj is None:
@@ -71,6 +73,8 @@ def load_mindcube_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> 
         flattened_meta = _flatten_meta(meta_info)
         meta_str = "; ".join(item for item in flattened_meta if item)
 
+        type_value = str(example.get("type") or "")
+
         rebuilt = {
             "example_id": example_id,
             "id": example_id,
@@ -79,7 +83,7 @@ def load_mindcube_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> 
             "images": resolved_images,
             "image_paths": resolved_images,
             "frames": resolved_images,
-            "type": example.get("type"),
+            "type": type_value,
             "category": category_values,
             "meta_info": meta_str,
             "split": split,
@@ -87,10 +91,25 @@ def load_mindcube_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> 
 
         split_to_examples.setdefault(split, []).append(rebuilt)
 
-    dataset_dict = {
-        split_name: Dataset.from_list(examples)
-        for split_name, examples in split_to_examples.items()
-    }
+    features = Features(
+        {
+            "example_id": Value("string"),
+            "id": Value("string"),
+            "question": Value("string"),
+            "answer": Value("string"),
+            "images": Sequence(Value("string")),
+            "image_paths": Sequence(Value("string")),
+            "frames": Sequence(Value("string")),
+            "type": Value("string"),
+            "category": Sequence(Value("string")),
+            "meta_info": Value("string"),
+            "split": Value("string"),
+        }
+    )
+
+    dataset_dict = {}
+    for split_name, examples in split_to_examples.items():
+        dataset_dict[split_name] = Dataset.from_list(examples, features=features)
 
     return DatasetDict(dataset_dict)
 

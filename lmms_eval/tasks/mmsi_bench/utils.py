@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, Features, Sequence, Value
 from PIL import Image
 
 from lmms_eval.filters.extraction import ExtendedRegexFilter
@@ -20,8 +20,10 @@ eval_logger = logging.getLogger("lmms-eval")
 def load_mmsi_bench_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -> DatasetDict:
     """Load the locally cached MMSI-Bench metadata into a DatasetDict."""
 
-    base_path = Path(dataset_kwargs.pop("data_root", dataset_path))
-    metadata_file = dataset_kwargs.pop("metadata_file", "metadata-full.json")
+    params = dict(dataset_kwargs)
+
+    base_path = Path(params.pop("data_root", dataset_path))
+    metadata_file = params.pop("metadata_file", "metadata-full.json")
     metadata_path = Path(metadata_file)
     if not metadata_path.is_absolute():
         metadata_path = base_path / metadata_file
@@ -39,8 +41,8 @@ def load_mmsi_bench_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -
     else:
         raise TypeError("MMSI-Bench metadata must be a JSON object or array.")
 
-    split_key = dataset_kwargs.pop("split_key", "split")
-    image_key = dataset_kwargs.pop("image_key", "img_paths")
+    split_key = params.pop("split_key", "split")
+    image_key = params.pop("image_key", "img_paths")
 
     split_to_examples: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for example in sorted(records, key=lambda item: str(item.get("example_id", ""))):
@@ -61,8 +63,8 @@ def load_mmsi_bench_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -
             "example_id": example_id,
             "id": example_id,
             "question": str(example.get("question", "")),
-            "question_type": example.get("question_type", "unknown"),
-            "thought": example.get("thought"),
+            "question_type": str(example.get("question_type", "unknown")),
+            "thought": str(example.get("thought") or ""),
             "images": resolved_images,
             "image_sequence": resolved_images,
             "img_paths": resolved_images,
@@ -72,10 +74,24 @@ def load_mmsi_bench_dataset(dataset_path: str, dataset_kwargs: Dict[str, Any]) -
 
         split_to_examples[split].append(rebuilt)
 
-    dataset_dict = {
-        split_name: Dataset.from_list(examples)
-        for split_name, examples in split_to_examples.items()
-    }
+    features = Features(
+        {
+            "example_id": Value("string"),
+            "id": Value("string"),
+            "question": Value("string"),
+            "question_type": Value("string"),
+            "thought": Value("string"),
+            "images": Sequence(Value("string")),
+            "image_sequence": Sequence(Value("string")),
+            "img_paths": Sequence(Value("string")),
+            "answer": Value("string"),
+            "split": Value("string"),
+        }
+    )
+
+    dataset_dict = {}
+    for split_name, examples in split_to_examples.items():
+        dataset_dict[split_name] = Dataset.from_list(examples, features=features)
 
     return DatasetDict(dataset_dict)
 
